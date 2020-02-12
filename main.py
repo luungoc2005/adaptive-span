@@ -58,7 +58,7 @@ def launch(env_params,
         adapt_span_params=adapt_span_params)
 
     model = model.to(device)
-    
+
     # OPTIMIZER AND SCHEDULER
     optimizer, scheduler = get_optimizer_and_scheduler(
         model=model, optim_params=optim_params)
@@ -115,12 +115,15 @@ def launch(env_params,
         for layer in model.module.layers] for _ in range(2)]
 
     nb_batches_per_iter = trainer_params['nb_batches_per_iter']
+    grad_clip = optim_params['grad_clip']
+    optim_name = optim_params['optim']
+
     for iter_no in range(iter_init, trainer_params['nb_iter']):
         t_sta = time.time()
         loss_train, data_pos[0], hid_cache[0] = train_iteration(
             model, optimizer, scheduler, train_data, nb_batches_per_iter,
             model_params['block_size'], False, data_pos[0], hid_cache[0],
-            trainer_params['batch_split'])
+            trainer_params['batch_split'], optim_name, grad_clip)
         elapsed = 1000 * (time.time() - t_sta) / nb_batches_per_iter
         with torch.no_grad():
             loss_val, data_pos[1], hid_cache[1] = train_iteration(

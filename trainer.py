@@ -12,7 +12,7 @@ import random
 
 import torch
 
-
+from apex import amp
 
 def _train_step(model, X, Y, h_cache, eval_only, loss_div=1):
     """Single training step."""
@@ -34,7 +34,7 @@ def _train_step(model, X, Y, h_cache, eval_only, loss_div=1):
 
 
 def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
-                 eval_only, batch_split):
+                 eval_only, batch_split, optim_name, grad_clip):
     """Train on a batch."""
 
     optimizer.zero_grad()
@@ -64,6 +64,10 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
     if not eval_only:
         if scheduler is not None:
             scheduler.step()
+
+        if optim_name is not None and optim_name != 'adagrad':
+            torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), grad_clip)
+
         optimizer.step()
 
         # make sure span parameters are in a correct range
@@ -75,7 +79,8 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
 
 
 def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
-                    block_size, eval_only, train_pos, h_cache, batch_split):
+                    block_size, eval_only, train_pos, h_cache, batch_split, 
+                    optim_name, grad_clip):
     """Single training iteration."""
     device = next(model.parameters()).device
 
@@ -105,7 +110,9 @@ def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
             X=X, Y=Y,
             h_cache=h_cache,
             eval_only=eval_only,
-            batch_split=batch_split)
+            batch_split=batch_split,
+            optim_name=optim_name,
+            grad_clip=grad_clip)
         loss_all += loss
         train_pos += block_size
         if train_pos >= data.size(1) - block_size:

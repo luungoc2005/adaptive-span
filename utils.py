@@ -16,6 +16,7 @@ import torch
 from apex import amp
 
 from adagrad_with_grad_clip import AdagradWithGradClip
+from torch.optim import AdamW
 
 
 def _parse_args(params_config, args):
@@ -94,6 +95,11 @@ def _get_optimizer(model,
         return AdagradWithGradClip(_get_grad_requiring_params(model),
                                    lr=lr,
                                    grad_clip=grad_clip)
+    elif optim == 'adamw':
+        return AdamW(_get_grad_requiring_params(model),
+            lr=lr,
+            eps=1e-6
+        )
     else:
         raise RuntimeError("wrong type of optimizer "
                            "- must be 'sgd' or 'adagrad")
