@@ -60,10 +60,8 @@ def launch(env_params,
     model = model.to(device)
 
     # OPTIMIZER AND SCHEDULER
-    optimizer, scheduler = get_optimizer_and_scheduler(
+    model, optimizer, scheduler = get_optimizer_and_scheduler(
         model=model, optim_params=optim_params)
-
-    model, optimizer = amp.initialize(model, optimizer)
 
     if distributed:
         local_rank = env_params['local_rank']

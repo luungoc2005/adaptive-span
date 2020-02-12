@@ -118,9 +118,12 @@ def get_optimizer_and_scheduler(model, optim_params):
                                lr=optim_params['lr'],
                                momentum=optim_params['momentum'],
                                grad_clip=optim_params['grad_clip'])
+    
+    model, optimizer = amp.initialize(model, optimizer)
+
     scheduler = _get_scheduler(optimizer=optimizer,
                                lr_warmup=optim_params['lr_warmup'])
-    return optimizer, scheduler
+    return model, optimizer, scheduler
 
 
 ##############################################################################
