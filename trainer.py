@@ -34,7 +34,7 @@ def _train_step(model, X, Y, h_cache, eval_only, loss_div=1):
 
 
 def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
-                 eval_only, batch_split, optim_name, grad_clip):
+                 eval_only, batch_split, optim_name=None, grad_clip=1.0):
     """Train on a batch."""
 
     optimizer.zero_grad()
@@ -62,13 +62,13 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
             , dim=0) for l in range(len(h_cache))]
 
     if not eval_only:
-        if scheduler is not None:
-            scheduler.step()
-
         if optim_name is not None and optim_name != 'adagrad':
             torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), grad_clip)
 
         optimizer.step()
+
+        if scheduler is not None:
+            scheduler.step()
 
         # make sure span parameters are in a correct range
         if model.module.layers[0].attn.attn.adapt_span_enabled:
@@ -80,7 +80,7 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
 
 def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
                     block_size, eval_only, train_pos, h_cache, batch_split, 
-                    optim_name, grad_clip):
+                    optim_name=None, grad_clip=1.0):
     """Single training iteration."""
     device = next(model.parameters()).device
 

@@ -159,8 +159,8 @@ class TransformerSeqLayer(nn.Module):
         nn.Module.__init__(self)
         self.attn = MultiHeadSeqAttention(hidden_size=hidden_size, **kargs)
         self.ff = FeedForwardLayer(hidden_size=hidden_size, **kargs)
-        self.norm1 = nn.LayerNorm(hidden_size, eps=1e-12)
-        self.norm2 = nn.LayerNorm(hidden_size, eps=1e-12)
+        self.norm1 = nn.LayerNorm(hidden_size, eps=1e-5)
+        self.norm2 = nn.LayerNorm(hidden_size, eps=1e-5)
 
     def forward(self, h, h_cache, key_pe):
         # h = B x M x H
@@ -179,9 +179,10 @@ class TransformerSeq(nn.Module):
         nn.Module.__init__(self)
         # token embeddings
         self.in_emb = nn.Embedding(vocab_size, hidden_size)
-        self.out_emb = nn.Linear(hidden_size, vocab_size, bias=False)
+        # self.out_emb = nn.Linear(hidden_size, vocab_size)
 
         # weight tying
+        self.out_emb = nn.Linear(hidden_size, vocab_size, bias=False)
         self.out_emb.weight = self.in_emb.weight
 
         # position embeddings
