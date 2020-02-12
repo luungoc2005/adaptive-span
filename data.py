@@ -11,50 +11,90 @@ import os
 import torch
 
 
-def _tokenize(text_path, dictionary_to_update):
+def _tokenize(text_path, tokenizer):
     """Tokenizes a text file."""
-    print('Tokenizing {}'.format(text_path))
-    assert os.path.exists(text_path)
+    if isinstance(text_path, list):
+        ids = []
+        for child_path in text_path:
+            ids.extend(_tokenize(child_path, tokenizer).tolist())
+        
+        ids = torch.LongTensor(ids)
 
-    nb_tokens_in_dictionary = len(dictionary_to_update)
+        return ids
+    else:
+        print('Tokenizing {}'.format(text_path))
+        assert os.path.exists(text_path)
 
-    # Count nb of tokens in text and update the dictionary
-    with open(text_path, 'r', encoding="utf8") as f:
-        for line in f:
-            tokens = line.split() + ['<eos>']
-            for token in tokens:
-                if token not in dictionary_to_update:
-                    dictionary_to_update[token] = nb_tokens_in_dictionary
-                    nb_tokens_in_dictionary += 1
+        # Assign to each token its identifier
+        ids = []
+        with open(text_path, 'r', encoding="utf8") as f:
+            for line in f:
+                enc = tokenizer.encode(line)
+                ids.extend(enc.ids)
 
-    # Assign to each token its identifier
-    ids = []
-    with open(text_path, 'r', encoding="utf8") as f:
-        for line in f:
-            tokens = line.split() + ['<eos>']
-            for token in tokens:
-                ids.append(dictionary_to_update[token])
-    ids = torch.LongTensor(ids)
+        ids = torch.LongTensor(ids)
 
-    return ids
+        return ids
 
 
-class Corpus:
-    def __init__(self, data_path):
-        self._dictionary = {}
-        self.train = _tokenize(
-            text_path=os.path.join(data_path, 'train.txt'),
-            dictionary_to_update=self._dictionary)
-        self.valid = _tokenize(
-            text_path=os.path.join(data_path, 'valid.txt'),
-            dictionary_to_update=self._dictionary)
-        self.test = _tokenize(
-            text_path=os.path.join(data_path, 'test.txt'),
-            dictionary_to_update=self._dictionary)
+class RedditCorpus:
+    def __init__(self, data_path=None, tokenizer_vocab_path=None, tokenizer_merges_path=None):
+        from tokenizers import SentencePieceBPETokenizer
+
+        if tokenizer_merges_path is None or tokenizer_vocab_path is None:
+            raise ValueError('Tokenizer not found')
+        
+        self.tokenizer = SentencePieceBPETokenizer(
+            tokenizer_vocab_path, tokenizer_merges_path
+        )
+
+        import math
+        TOTAL_BATCHES = 7
+        TRAIN_RANGE = max(1, math.floor(TOTAL_BATCHES * .7))
+        VALID_RANGE = max(1, math.floor(TOTAL_BATCHES * .2))
+        TEST_RANGE = max(1, math.floor(TOTAL_BATCHES * .1))
+
+        start_ix = 0
+
+        if data_path is not None:
+            self.train = _tokenize(
+                text_path=[
+                    os.path.join(data_path, f'batch_{ix}.txt')
+                    for ix in range(start_ix, start_ix+TRAIN_RANGE)
+                ],
+                tokenizer=self.tokenizer)
+            start_ix += TRAIN_RANGE
+
+            self.valid = _tokenize(
+                text_path=[
+                    os.path.join(data_path, f'batch_{ix}.txt')
+                    for ix in range(start_ix, start_ix+VALID_RANGE)
+                ],
+                tokenizer=self.tokenizer)
+            start_ix += VALID_RANGE
+
+            self.test = _tokenize(
+                text_path=[
+                    os.path.join(data_path, f'batch_{ix}.txt')
+                    for ix in range(start_ix, start_ix+TEST_RANGE)
+                ],
+                tokenizer=self.tokenizer)
+
+    def state_dict(self):
+        return {
+            'train': self.train,
+            'valid': self.valid,
+            'test': self.test
+        }
+
+    def load_state_dict(self, state_dict):
+        self.train = state_dict['train']
+        self.valid = state_dict['valid']
+        self.test = state_dict['test']
 
     @property
     def vocab_size(self):
-        return len(self._dictionary)
+        return self.tokenizer._tokenizer.get_vocab_size()
 
 
 def _batchify(data_tensor, batch_size):
@@ -65,31 +105,35 @@ def _batchify(data_tensor, batch_size):
     return data_tensor
 
 
-def _build_corpus(data_path, env_params):
+def _build_corpus(data_path, tokenizer_vocab_path, tokenizer_merges_path, env_params):
     # save the corpus to a file so that it's faster next time
     corpus_path = os.path.join(data_path, 'corpus.pt')
     if os.path.exists(corpus_path):
         print('Loading an existing corpus file from {}'.format(corpus_path))
-        corpus = torch.load(corpus_path)
+        
+        corpus = RedditCorpus(None, tokenizer_vocab_path, tokenizer_merges_path)
+        corpus_checkpoint = torch.load(corpus_path)
+        corpus.load_state_dict(corpus_checkpoint)
     else:
         print('Creating a corpus file at {}'.format(corpus_path))
         if env_params['distributed']:
             # only one process need to create a corpus file
             if env_params['rank'] == 0:
-                corpus = Corpus(data_path)
-                torch.save(corpus, corpus_path)
+                corpus = RedditCorpus(data_path, tokenizer_vocab_path, tokenizer_merges_path)
+                torch.save(corpus.state_dict(), corpus_path)
                 # sync with other processes
                 torch.distributed.broadcast(torch.zeros(1).cuda(), src=0)
             else:
                 print('Waiting rank0 to create a corpus file.')
                 # sync with rank0
                 torch.distributed.broadcast(torch.zeros(1).cuda(), src=0)
-                corpus = torch.load(corpus_path)
+                corpus = RedditCorpus(None, tokenizer_vocab_path, tokenizer_merges_path)
+                corpus_checkpoint = torch.load(corpus_path)
+                corpus.load_state_dict(corpus_checkpoint)
         else:
-            corpus = Corpus(data_path)
-            torch.save(corpus, corpus_path)
+            corpus = RedditCorpus(data_path, tokenizer_vocab_path, tokenizer_merges_path)
+            torch.save(corpus.state_dict(), corpus_path)
     return corpus
-
 
 def _get_train_val_test_data(corpus, batch_size):
     return [

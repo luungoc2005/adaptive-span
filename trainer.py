@@ -77,6 +77,8 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
 def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
                     block_size, eval_only, train_pos, h_cache, batch_split):
     """Single training iteration."""
+    device = next(model.parameters()).device
+
     if eval_only:
         model.eval()
     else:
@@ -93,8 +95,8 @@ def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
     actual_nb_batches_per_iter = 0
     for _ in range(nb_batches_per_iter_max):
         actual_nb_batches_per_iter += 1
-        X = data[:, train_pos: train_pos + block_size].contiguous()
-        Y = data[:, train_pos + 1: train_pos + block_size + 1].contiguous()
+        X = data[:, train_pos: train_pos + block_size].contiguous().to(device)
+        Y = data[:, train_pos + 1: train_pos + block_size + 1].contiguous().to(device)
 
         loss, h_cache = _train_batch(
             model=model,
@@ -120,6 +122,7 @@ def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
 # do full evaluation
 def full_eval(model, optimizer, scheduler, data, block_size, hidden_size):
     model.eval()
+    device = next(model.parameters()).device
     train_pos = 0
     nb_batches_per_iter_max = math.ceil(data.size(1) / block_size)
     h_cache = [
@@ -133,8 +136,8 @@ def full_eval(model, optimizer, scheduler, data, block_size, hidden_size):
     actual_nb_batches_per_iter = 0
     for _ in range(nb_batches_per_iter_max):
         actual_nb_batches_per_iter += 1
-        X = data[:, train_pos: train_pos + block_size].contiguous()
-        Y = data[:, train_pos + 1: train_pos + block_size + 1].contiguous()
+        X = data[:, train_pos: train_pos + block_size].contiguous().to(device)
+        Y = data[:, train_pos + 1: train_pos + block_size + 1].contiguous().to(device)
 
         loss, h_cache = _train_batch(
             model=model,

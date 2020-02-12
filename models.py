@@ -15,6 +15,8 @@ import torch.nn.functional as F
 
 from adaptive_span import AdaptiveSpan
 
+from torch.utils.checkpoint import checkpoint
+
 # Size notations:
 # B = batch_size, H = hidden_size, M = block_size, L = attn_span
 
@@ -157,8 +159,8 @@ class TransformerSeqLayer(nn.Module):
         nn.Module.__init__(self)
         self.attn = MultiHeadSeqAttention(hidden_size=hidden_size, **kargs)
         self.ff = FeedForwardLayer(hidden_size=hidden_size, **kargs)
-        self.norm1 = nn.LayerNorm(hidden_size)
-        self.norm2 = nn.LayerNorm(hidden_size)
+        self.norm1 = nn.LayerNorm(hidden_size, eps=1e-12)
+        self.norm2 = nn.LayerNorm(hidden_size, eps=1e-12)
 
     def forward(self, h, h_cache, key_pe):
         # h = B x M x H
@@ -177,7 +179,11 @@ class TransformerSeq(nn.Module):
         nn.Module.__init__(self)
         # token embeddings
         self.in_emb = nn.Embedding(vocab_size, hidden_size)
-        self.out_emb = nn.Linear(hidden_size, vocab_size)
+        self.out_emb = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        # weight tying
+        self.out_emb.weight = self.in_emb.weight
+
         # position embeddings
         self.key_pe = nn.Parameter(
             torch.randn(1, hidden_size // nb_heads, attn_span))
@@ -188,6 +194,21 @@ class TransformerSeq(nn.Module):
                 hidden_size=hidden_size, nb_heads=nb_heads,
                 attn_span=attn_span, **kargs)
             for _ in range(nb_layers))
+        
+        def _init_weights(module):
+            """ Initialize the weights """
+            initializer_range=.02
+            if isinstance(module, (nn.Linear, nn.Embedding)):
+                # Slightly different from the TF version which uses truncated_normal for initialization
+                # cf https://github.com/pytorch/pytorch/pull/5617
+                module.weight.data.normal_(mean=0.0, std=initializer_range)
+            elif isinstance(module, nn.LayerNorm):
+                module.bias.data.zero_()
+                module.weight.data.fill_(1.0)
+            if isinstance(module, nn.Linear) and module.bias is not None:
+                module.bias.data.zero_()
+
+        self.apply(_init_weights)
 
     def forward(self, x, h_cache):
         # x size = B x M
@@ -203,7 +224,8 @@ class TransformerSeq(nn.Module):
             else:
                 h_cache_next_l = h[:, -cache_size:, :].detach()
             h_cache_next.append(h_cache_next_l)
-            h = layer(h, h_cache[l], self.key_pe)  # B x M x H
+            h = checkpoint(layer, h, h_cache[l], self.key_pe)
+            # h = layer(h, h_cache[l], self.key_pe)  # B x M x H
 
         out = F.log_softmax(self.out_emb(h), dim=-1)
 

@@ -12,6 +12,8 @@ import time
 
 import torch
 
+from apex import amp
+
 from config import PARAMS_CONFIG
 from data import get_train_val_test_data
 from models import TransformerSeq
@@ -48,24 +50,27 @@ def launch(env_params,
         data_params=data_params,
         env_params=env_params,
         batch_size=trainer_params['batch_size'],
-        device=device)
+        device='cpu')
 
     # MODEL
     model = TransformerSeq(
         vocab_size=data_params['vocab_size'], **model_params,
         adapt_span_params=adapt_span_params)
+
+    model = model.to(device)
+    
+    # OPTIMIZER AND SCHEDULER
+    optimizer, scheduler = get_optimizer_and_scheduler(
+        model=model, optim_params=optim_params)
+
+    model, optimizer = amp.initialize(model, optimizer)
+
     if distributed:
         local_rank = env_params['local_rank']
-        model = model.to(device)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[local_rank], output_device=local_rank)
     else:
         model = torch.nn.DataParallel(model)
-        model = model.to(device)
-
-    # OPTIMIZER AND SCHEDULER
-    optimizer, scheduler = get_optimizer_and_scheduler(
-        model=model, optim_params=optim_params)
 
     # create logger
     logger = Logger()

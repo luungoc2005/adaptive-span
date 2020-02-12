@@ -35,6 +35,16 @@ PARAMS_CONFIG = {
                     '(must contain train.txt, valid.txt and test.txt)',
             'dest': 'data_path'
         },
+        '--tokenizer_vocab': {
+            'type': str,
+            'default': 'data/reddit/vocab/en-vocab.json',
+            'dest': 'tokenizer_vocab_path'
+        },
+        '--tokenizer_merges': {
+            'type': str,
+            'default': 'data/reddit/vocab/en-merges.txt',
+            'dest': 'tokenizer_merges_path'
+        }
     },
     # model-specific
     'model_params': {

@@ -12,6 +12,9 @@ import math
 import argparse
 
 import torch
+
+from apex import amp
+
 from adagrad_with_grad_clip import AdagradWithGradClip
 
 
@@ -131,6 +134,7 @@ def _load_checkpoint(checkpoint_path, model, optimizer, scheduler, logger,
     model.load_state_dict(checkpoint_state['model'])
     optimizer.load_state_dict(checkpoint_state['optimizer'])
     logger.load_state_dict(checkpoint_state['logger'])
+    amp.load_state_dict(checkpoint_state['amp'])
     if 'scheduler_iter' in checkpoint_state:
         # we only need the step count
         scheduler.step(checkpoint_state['scheduler_iter'])
@@ -157,6 +161,7 @@ def save_checkpoint(checkpoint_path, iter_no, model,
             'model': model.state_dict(),
             'logger': logger.state_dict(),
             'optimizer': optimizer.state_dict(),
+            'amp': amp.state_dict()
         }
         if scheduler is not None:
             checkpoint_state['scheduler_iter'] = scheduler.last_epoch
@@ -187,8 +192,10 @@ class Logger:
         step = (iter_no + 1) * nb_batches_per_iter
         train_bpc = float(loss_train / math.log(2))
         val_bpc = float(loss_val / math.log(2))
+        train_ppl = math.exp(loss_train)
+        val_ppl = math.exp(loss_val)
         msg = 'steps: {}'.format(step)
-        msg += '\ttrain: {:.3f}bpc\tval: {:.3f}bpc'.format(train_bpc, val_bpc)
+        msg += '\ttrain: {:.3f}bpc {:.2f}ppl\tval: {:.3f}bpc {:.2f}ppl'.format(train_bpc, train_ppl, val_bpc, val_ppl)
         msg += '\tms/batch: {:.1f}'.format(elapsed)
         self._log(title='step', value=step)
         self._log(title='train_bpc', value=train_bpc)
