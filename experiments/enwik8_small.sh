@@ -13,12 +13,12 @@ args="
 --attn-span 1024 \
 --block-sz 256 \
 --batch-sz 64 \
---lr 0.07 \
+--lr 5e-4 \
 --momentum 0 \
 --dropout 0 \
---optim adagrad \
+--optim radam \
 --lr-warmup 8000 \
---grad-clip 0.03 \
+--grad-clip 1.0 \
 --niter 150 \
 --nbatches 1000 \
 --adapt-span \
