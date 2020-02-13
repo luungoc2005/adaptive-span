@@ -148,7 +148,8 @@ class FeedForwardLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, h):
-        h1 = F.relu(self.fc1(h))
+        # h1 = F.relu(self.fc1(h))
+        h1 = F.gelu(self.fc1(h))
         h1 = self.dropout(h1)
         h2 = self.fc2(h1)
         return h2
@@ -211,7 +212,7 @@ class TransformerSeq(nn.Module):
 
         self.apply(_init_weights)
 
-    def forward(self, x, h_cache):
+    def forward(self, x, h_cache, only_logits=False):
         # x size = B x M
         block_size = x.size(1)
         h = self.in_emb(x)  # B x M x H
@@ -228,6 +229,12 @@ class TransformerSeq(nn.Module):
             h = checkpoint(layer, h, h_cache[l], self.key_pe)
             # h = layer(h, h_cache[l], self.key_pe)  # B x M x H
 
-        out = F.log_softmax(self.out_emb(h), dim=-1)
+        out = self.out_emb(h)
 
-        return out, h_cache_next
+        if only_logits:
+            return out, h_cache_next
+        
+        else:
+            out = F.log_softmax(out, dim=-1)
+
+            return out, h_cache_next

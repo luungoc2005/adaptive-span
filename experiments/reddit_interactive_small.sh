@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-mkdir -p checkpoints
-
 args="
 --data data/reddit \
 --tokenizer_vocab data/reddit/vocab/en-vocab.json \
@@ -29,11 +27,6 @@ args="
 "
 
 
-echo "Training ..."
+echo "Launching ..."
 # using the pytorch distributed launching
-python3 main.py $args
-
-
-echo "Evaluation ..."
-# use a smaller batch size to reduce tokens without context and omitted tokens.
-python3 main.py $args --full-eval-mode --batch-sz 8
+python3 reddit_interactive.py $args
