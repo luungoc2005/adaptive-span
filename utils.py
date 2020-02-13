@@ -91,6 +91,12 @@ def _get_optimizer(model,
         return AdagradWithGradClip(_get_grad_requiring_params(model),
                                    lr=lr,
                                    grad_clip=grad_clip)
+    elif optim == 'radam':
+        from radam import RAdam
+        return RAdam(_get_grad_requiring_params(model),
+            lr=lr,
+            eps=1e-6
+        )
     else:
         raise RuntimeError("wrong type of optimizer "
                            "- must be 'sgd' or 'adagrad")
