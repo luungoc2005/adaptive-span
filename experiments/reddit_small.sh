@@ -16,8 +16,8 @@ args="
 --lr 5e-4 \
 --momentum 0 \
 --dropout 0.1 \
---optim adamw \
---lr-warmup 8000 \
+--optim radam \
+--lr-warmup 10000 \
 --grad-clip 1.0 \
 --niter 150 \
 --nbatches 1000 \
@@ -36,4 +36,4 @@ python3 main.py $args
 
 echo "Evaluation ..."
 # use a smaller batch size to reduce tokens without context and omitted tokens.
-python3 main.py $args --full-eval-mode --batch-sz 8
+python3 main.py $args --full-eval-mode --batch-sz 32

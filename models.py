@@ -148,8 +148,8 @@ class FeedForwardLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, h):
-        # h1 = F.relu(self.fc1(h))
-        h1 = F.gelu(self.fc1(h))
+        h1 = F.relu(self.fc1(h))
+        # h1 = F.gelu(self.fc1(h))
         h1 = self.dropout(h1)
         h2 = self.fc2(h1)
         return h2
