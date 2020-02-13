@@ -24,7 +24,7 @@ args="
 --adapt-span \
 --adapt-span-loss 0.000002 \
 --adapt-span-cache \
---batch-split 3 \
+--batch-split 2 \
 --checkpoint checkpoints/reddit_small.pt
 "
 
