@@ -7,6 +7,8 @@
 
 #!/usr/bin/env python3
 
+from comet import experiment
+
 import os
 import math
 import argparse
@@ -17,8 +19,6 @@ from apex import amp
 
 from adagrad_with_grad_clip import AdagradWithGradClip
 from torch.optim import AdamW
-
-from comet import experiment
 
 def _parse_args(params_config, args):
     parser = argparse.ArgumentParser()
@@ -220,7 +220,7 @@ class Logger:
         self._log(title='train_ppl', value=train_ppl)
         self._log(title='val_ppl', value=val_ppl)
         self._log(title='ms/batch', value=elapsed)
-        
+
         if model.module.layers[0].attn.attn.adapt_span_enabled:
             avg_spans = []
             max_spans = []

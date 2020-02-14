@@ -7,6 +7,8 @@
 
 #!/usr/bin/env python3
 
+from comet import experiment
+
 import math
 import time
 
@@ -25,9 +27,6 @@ from utils import (
     load_checkpoint,
     save_checkpoint,
     Logger)
-
-from comet import experiment
-
 
 def launch(env_params,
            model_params,
