@@ -44,6 +44,17 @@ def _unskew(X):
     return X
 
 
+class ScaleNorm(nn.Module):
+    def __init__(self, dim, eps=1e-5):
+        super().__init__()
+        self.g = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.eps = eps
+
+    def forward(self, x):
+        n = torch.norm(x, dim=-1, keepdim=True).clamp(min=self.eps)
+        return x / n * self.g
+
+
 class SeqAttention(nn.Module):
     """Sequential self-attention layer.
     Each token will attend to its previous fixed number of steps.
@@ -160,8 +171,10 @@ class TransformerSeqLayer(nn.Module):
         nn.Module.__init__(self)
         self.attn = MultiHeadSeqAttention(hidden_size=hidden_size, **kargs)
         self.ff = FeedForwardLayer(hidden_size=hidden_size, **kargs)
-        self.norm1 = nn.LayerNorm(hidden_size, eps=1e-5)
-        self.norm2 = nn.LayerNorm(hidden_size, eps=1e-5)
+        # self.norm1 = nn.LayerNorm(hidden_size, eps=1e-5)
+        # self.norm2 = nn.LayerNorm(hidden_size, eps=1e-5)
+        self.norm1 = ScaleNorm(hidden_size, eps=1e-5)
+        self.norm2 = ScaleNorm(hidden_size, eps=1e-5)
 
     def forward(self, h, h_cache, key_pe):
         # h = B x M x H
@@ -179,8 +192,11 @@ class TransformerSeq(nn.Module):
                  attn_span, **kargs):
         nn.Module.__init__(self)
         # token embeddings
-        self.in_emb = nn.Embedding(vocab_size, hidden_size)
+        self.in_emb = nn.Embedding(vocab_size, hidden_size // 2)
+        self.in_factor = nn.Linear(hidden_size // 2, hidden_size)
         # self.out_emb = nn.Linear(hidden_size, vocab_size)
+
+        self.out_factor = nn.Linear(hidden_size, hidden_size // 2)
 
         # weight tying
         self.out_emb = nn.Linear(hidden_size, vocab_size, bias=False)
@@ -199,7 +215,7 @@ class TransformerSeq(nn.Module):
         
         def _init_weights(module):
             """ Initialize the weights """
-            initializer_range=.02
+            initializer_range=.01
             if isinstance(module, (nn.Linear, nn.Embedding)):
                 # Slightly different from the TF version which uses truncated_normal for initialization
                 # cf https://github.com/pytorch/pytorch/pull/5617
@@ -216,6 +232,8 @@ class TransformerSeq(nn.Module):
         # x size = B x M
         block_size = x.size(1)
         h = self.in_emb(x)  # B x M x H
+        h = self.in_factor(h)
+
         h_cache_next = []
         for l, layer in enumerate(self.layers):
             cache_size = layer.attn.attn.get_cache_size()
@@ -229,7 +247,8 @@ class TransformerSeq(nn.Module):
             h = checkpoint(layer, h, h_cache[l], self.key_pe)
             # h = layer(h, h_cache[l], self.key_pe)  # B x M x H
 
-        out = self.out_emb(h)
+        out = self.out_factor(h)
+        out = self.out_emb(out)
 
         if only_logits:
             return out, h_cache_next
