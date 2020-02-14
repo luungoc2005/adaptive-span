@@ -18,6 +18,7 @@ from apex import amp
 from adagrad_with_grad_clip import AdagradWithGradClip
 from torch.optim import AdamW
 
+from comet import experiment
 
 def _parse_args(params_config, args):
     parser = argparse.ArgumentParser()
@@ -201,6 +202,7 @@ class Logger:
         if title not in self._state_dict:
             self._state_dict[title] = []
         self._state_dict[title].append(value)
+        experiment.log_metric(title, value)
 
     def log_iter(self, iter_no, nb_batches_per_iter, loss_train, loss_val,
                  elapsed, model):
@@ -215,7 +217,10 @@ class Logger:
         self._log(title='step', value=step)
         self._log(title='train_bpc', value=train_bpc)
         self._log(title='val_bpc', value=val_bpc)
-
+        self._log(title='train_ppl', value=train_ppl)
+        self._log(title='val_ppl', value=val_ppl)
+        self._log(title='ms/batch', value=elapsed)
+        
         if model.module.layers[0].attn.attn.adapt_span_enabled:
             avg_spans = []
             max_spans = []

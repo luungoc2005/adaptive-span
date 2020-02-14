@@ -26,6 +26,8 @@ from utils import (
     save_checkpoint,
     Logger)
 
+from comet import experiment
+
 
 def launch(env_params,
            model_params,
@@ -44,6 +46,8 @@ def launch(env_params,
         print('data_params:\t', data_params)
         print('trainer_params:\t', trainer_params)
         print('adapt_span_params:\t', adapt_span_params)
+
+        experiment.log_parameters({**model_params, **optim_params, **data_params, **trainer_params, **adapt_span_params})
 
     # DATA
     train_data, val_data, test_data = get_train_val_test_data(
