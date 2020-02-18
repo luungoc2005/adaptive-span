@@ -6,6 +6,7 @@ args="
 --data data/reddit \
 --tokenizer_vocab data/reddit/vocab/en-vocab.json \
 --tokenizer_merges data/reddit/vocab/en-merges.txt \
+--reformer
 --nlayers 8 \
 --hid-sz 256 \
 --inner-hid-sz 1024 \
@@ -18,7 +19,7 @@ args="
 --momentum 0 \
 --dropout .1 \
 --lr-warmup 8000 \
---grad-clip 0.03 \
+--grad-clip 1.0 \
 --niter 150 \
 --nbatches 1000 \
 --adapt-span \

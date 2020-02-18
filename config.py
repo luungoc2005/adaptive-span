@@ -48,6 +48,12 @@ PARAMS_CONFIG = {
     },
     # model-specific
     'model_params': {
+        '--reformer': {
+            'action': 'store_true',
+            'default': False,
+            'help': 'enable reformer LM',
+            'dest': 'reformer_model'
+        },
         '--hid-sz': {
             'type': int,
             'default': 256,

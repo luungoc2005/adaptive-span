@@ -19,6 +19,7 @@ from apex import amp
 from config import PARAMS_CONFIG
 from data import get_train_val_test_data
 from models import TransformerSeq
+from reformer import ReformerLM
 from trainer import train_iteration, full_eval
 from utils import (
     get_params,
@@ -56,9 +57,15 @@ def launch(env_params,
         device='cpu')
 
     # MODEL
-    model = TransformerSeq(
-        vocab_size=data_params['vocab_size'], **model_params,
-        adapt_span_params=adapt_span_params)
+    if model_params['reformer_model']:
+        model = ReformerLM(
+            vocab_size=data_params['vocab_size'],
+            **model_params
+        )
+    else:
+        model = TransformerSeq(
+            vocab_size=data_params['vocab_size'], **model_params,
+            adapt_span_params=adapt_span_params)
 
     model = model.to(device)
 
@@ -108,12 +115,15 @@ def launch(env_params,
     # position of current batch
     data_pos = [0] * 2
     # initialize caches for train and valid
-    hid_cache = [[
-        torch.zeros(
-            train_data.size(0),
-            layer.attn.attn.get_cache_size(),
-            model_params['hidden_size']).to(device)
-        for layer in model.module.layers] for _ in range(2)]
+    if model_params['reformer_model']:
+        hid_cache = [None, None]
+    else:
+        hid_cache = [[
+            torch.zeros(
+                train_data.size(0),
+                layer.attn.attn.get_cache_size(),
+                model_params['hidden_size']).to(device)
+            for layer in model.module.layers] for _ in range(2)]
 
     nb_batches_per_iter = trainer_params['nb_batches_per_iter']
     grad_clip = optim_params['grad_clip']
@@ -121,6 +131,7 @@ def launch(env_params,
 
     for iter_no in range(iter_init, trainer_params['nb_iter']):
         t_sta = time.time()
+
         loss_train, data_pos[0], hid_cache[0] = train_iteration(
             model, optimizer, scheduler, train_data, nb_batches_per_iter,
             model_params['block_size'], False, data_pos[0], hid_cache[0],

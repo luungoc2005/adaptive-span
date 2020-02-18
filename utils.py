@@ -18,6 +18,8 @@ from apex import amp
 from adagrad_with_grad_clip import AdagradWithGradClip
 from torch.optim import AdamW
 
+from models import TransformerSeq
+
 def _parse_args(params_config, args):
     parser = argparse.ArgumentParser()
     for params_category in params_config:  # e.g., 'model_params'
@@ -220,7 +222,7 @@ class Logger:
         self._log(title='val_ppl', value=val_ppl)
         self._log(title='ms/batch', value=elapsed)
 
-        if model.module.layers[0].attn.attn.adapt_span_enabled:
+        if isinstance(model, TransformerSeq) and model.module.layers[0].attn.attn.adapt_span_enabled:
             avg_spans = []
             max_spans = []
             for layer in model.module.layers:
