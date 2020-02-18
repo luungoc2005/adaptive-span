@@ -12,19 +12,19 @@ args="
 --nheads 8 \
 --attn-span 1024 \
 --block-sz 256 \
---batch-sz 144 \
---lr 2e-4 \
+--batch-sz 64 \
+--lr 2e-5 \
 --momentum 0 \
 --dropout 0.1 \
 --optim radam \
---lr-warmup 12000 \
---grad-clip 1.0 \
---niter 250 \
+--lr-warmup 32000 \
+--grad-clip 0.03 \
+--niter 350 \
 --nbatches 1000 \
 --adapt-span \
---adapt-span-loss 0.0000005 \
+--adapt-span-loss 0.000001 \
 --adapt-span-cache \
---batch-split 3 \
+--batch-split 2 \
 --checkpoint checkpoints/reddit_small.pt
 "
 

@@ -171,10 +171,10 @@ class TransformerSeqLayer(nn.Module):
         nn.Module.__init__(self)
         self.attn = MultiHeadSeqAttention(hidden_size=hidden_size, **kargs)
         self.ff = FeedForwardLayer(hidden_size=hidden_size, **kargs)
-        # self.norm1 = nn.LayerNorm(hidden_size, eps=1e-5)
-        # self.norm2 = nn.LayerNorm(hidden_size, eps=1e-5)
-        self.norm1 = ScaleNorm(hidden_size, eps=1e-5)
-        self.norm2 = ScaleNorm(hidden_size, eps=1e-5)
+        self.norm1 = nn.LayerNorm(hidden_size, eps=1e-5)
+        self.norm2 = nn.LayerNorm(hidden_size, eps=1e-5)
+        # self.norm1 = ScaleNorm(hidden_size, eps=1e-5)
+        # self.norm2 = ScaleNorm(hidden_size, eps=1e-5)
 
     def forward(self, h, h_cache, key_pe):
         # h = B x M x H
@@ -199,8 +199,8 @@ class TransformerSeq(nn.Module):
         self.out_factor = nn.Linear(hidden_size, hidden_size // 2)
 
         # weight tying
-        self.out_emb = nn.Linear(hidden_size, vocab_size, bias=False)
-        self.out_emb.weight = self.in_emb.weight
+        self.out_emb = nn.Linear(hidden_size // 2, vocab_size)
+        # self.out_emb.weight = self.in_emb.weight
 
         # position embeddings
         self.key_pe = nn.Parameter(
@@ -219,7 +219,7 @@ class TransformerSeq(nn.Module):
             if isinstance(module, (nn.Linear, nn.Embedding)):
                 # Slightly different from the TF version which uses truncated_normal for initialization
                 # cf https://github.com/pytorch/pytorch/pull/5617
-                module.weight.data.normal_(mean=0, std=(hidden_size // 2 ** -0.5))
+                module.weight.data.normal_(mean=0, std=(float(hidden_size // 2) ** -0.5))
             elif isinstance(module, nn.LayerNorm):
                 module.bias.data.zero_()
                 module.weight.data.fill_(1.0)
