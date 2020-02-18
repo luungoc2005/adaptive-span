@@ -4,24 +4,24 @@ args="
 --data data/reddit \
 --tokenizer_vocab data/reddit/vocab/en-vocab.json \
 --tokenizer_merges data/reddit/vocab/en-merges.txt \
---nlayers 12 \
+--nlayers 8 \
 --hid-sz 256 \
 --inner-hid-sz 1024 \
 --nheads 4 \
---attn-span 2048 \
+--attn-span 4096 \
 --block-sz 256 \
---batch-sz 128 \
---lr 5e-4 \
+--batch-sz 64 \
+--optim radam \
+--lr 3e-4 \
 --momentum 0 \
---dropout 0.1 \
---optim adamw \
+--dropout .1 \
 --lr-warmup 8000 \
---grad-clip 1.0 \
+--grad-clip 0.03 \
 --niter 150 \
 --nbatches 1000 \
 --adapt-span \
---adapt-span-loss 0.000002 \
---adapt-span-cache \
+--adapt-span-loss 0.000001 \
+--adapt-span-cache
 --batch-split 2 \
 --checkpoint checkpoints/reddit_small.pt
 "

@@ -119,6 +119,7 @@ def launch(env_params,
     print('adapt_span_params:\t', adapt_span_params)
 
     device = env_params['device']
+    # device = 'cpu'
     max_length = model_params['attn_span']
     hidden_size = model_params['hidden_size']
 
@@ -153,8 +154,8 @@ def launch(env_params,
         input_ids=None,
         max_length=max_length,
         do_sample=True,
-        num_beams=5,
-        temperature=1.5,
+        num_beams=3,
+        temperature=1.2,
         top_k=50,
         top_p=1.0,
         repetition_penalty=1.2,
@@ -163,6 +164,7 @@ def launch(env_params,
         num_return_sequences=1,
         vocab_size=vocab_size
     ):
+        pad_token_id = 0
         model.eval()
 
         batch_size = 1
@@ -198,6 +200,8 @@ def launch(env_params,
         while cur_len < max_length:
             
             outputs, h_cache = model(input_ids, h_cache, only_logits=True)
+            # print(input_ids)
+            # print(torch.argmax(outputs))
 
             scores = outputs[:, -1, :]
 
@@ -326,6 +330,9 @@ def launch(env_params,
         best = []
 
         for i, hypotheses in enumerate(generated_hyps):
+            if len(hypotheses.hyp) == 0:
+                continue
+            
             best_hyp = max(hypotheses.hyp, key=lambda x: x[0])[1]
             tgt_len[i] = len(best_hyp) + 1  # +1 for the <EOS> symbol
             best.append(best_hyp)
@@ -348,6 +355,7 @@ def launch(env_params,
             exit()
 
         else:
+            num_return_sequences = 1
 
             model_input += ' [P0] ' + user_prompt + ' [SEP] [P1] '
 
@@ -355,14 +363,30 @@ def launch(env_params,
             input_ids = torch.LongTensor(input_ids).unsqueeze(0)
             input_ids = input_ids.to(device)
 
-            output = _generate(input_ids=input_ids)
+            output = _generate(input_ids=input_ids, max_length=min(max_length, input_ids.size(1) + 40))
 
             if num_return_sequences != 1:
                 output = output.view(batch_size, num_return_sequences, -1)
 
             response = tokenizer.decode(output[0].cpu().tolist(), skip_special_tokens=False)
+
+            eod_token = '[DOC_SEP]'
+
+            if eod_token in response:
+                response = response[response.index(eod_token):]
+
+            start_token = '[P1]'
+            sep_token = '[SEP]'
+
+            if start_token in response:
+                start_idx = response.index(start_token) + len(start_token) + 1
+                response = response[start_idx:]
             
-            print(response)
+            if sep_token in response:
+                sep_idx = response.index(sep_token)
+                response = response[:sep_idx]
+                
+            print('Bot: ' + response)
 
 if __name__ == '__main__':
     launch(**get_params(params_config=PARAMS_CONFIG))

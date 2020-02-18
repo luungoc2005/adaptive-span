@@ -7,8 +7,6 @@
 
 #!/usr/bin/env python3
 
-from comet import experiment
-
 import os
 import math
 import argparse
@@ -199,6 +197,7 @@ class Logger:
         return self._state_dict
 
     def _log(self, title, value):
+        from comet import experiment
         if title not in self._state_dict:
             self._state_dict[title] = []
         self._state_dict[title].append(value)
