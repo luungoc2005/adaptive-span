@@ -370,10 +370,11 @@ def launch(env_params,
 
             response = tokenizer.decode(output[0].cpu().tolist(), skip_special_tokens=False)
 
-            eod_token = '[DOC_SEP]'
+            if len(response) > len(LEADING_TEXT):
+                eod_token = '[DOC_SEP]'
 
-            if eod_token in response:
-                response = response[response.index(eod_token):]
+                if eod_token in response:
+                    response = response[response.index(eod_token):]
 
             start_token = '[P1]'
             sep_token = '[SEP]'

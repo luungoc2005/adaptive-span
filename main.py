@@ -19,7 +19,7 @@ from apex import amp
 from config import PARAMS_CONFIG
 from data import get_train_val_test_data
 from models import TransformerSeq
-from reformer import ReformerLM
+from reformer import ReformerLM, Autopadder
 from trainer import train_iteration, full_eval
 from utils import (
     get_params,
@@ -58,10 +58,10 @@ def launch(env_params,
 
     # MODEL
     if model_params['reformer_model']:
-        model = ReformerLM(
+        model = Autopadder(ReformerLM(
             vocab_size=data_params['vocab_size'],
             **model_params
-        )
+        ))
     else:
         model = TransformerSeq(
             vocab_size=data_params['vocab_size'], **model_params,

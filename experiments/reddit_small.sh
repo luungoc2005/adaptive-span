@@ -7,25 +7,25 @@ args="
 --tokenizer_vocab data/reddit/vocab/en-vocab.json \
 --tokenizer_merges data/reddit/vocab/en-merges.txt \
 --reformer
---nlayers 8 \
+--nlayers 2 \
 --hid-sz 256 \
 --inner-hid-sz 1024 \
 --nheads 4 \
---attn-span 4096 \
---block-sz 256 \
+--attn-span 2048 \
+--block-sz 768 \
 --batch-sz 64 \
 --optim radam \
 --lr 3e-4 \
 --momentum 0 \
 --dropout .1 \
---lr-warmup 8000 \
---grad-clip 1.0 \
+--lr-warmup 10000 \
+--grad-clip 0.5 \
 --niter 150 \
 --nbatches 1000 \
+--batch-split 2 \
 --adapt-span \
 --adapt-span-loss 0.000001 \
---adapt-span-cache
---batch-split 2 \
+--adapt-span-cache \
 --checkpoint checkpoints/reddit_small.pt
 "
 

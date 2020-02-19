@@ -50,7 +50,7 @@ def _train_batch(model, optimizer, scheduler, X, Y, h_cache,
         if h_cache is not None:
             loss_value, h_cache = _train_step(model, X, Y, h_cache, eval_only)
         else:
-            loss_value = _train_step(model, X, Y, None, eval_only)
+            loss_value, _ = _train_step(model, X, Y, None, eval_only)
     else:
         # split a batch into multiple pieces that each can fit in memory
         assert X.size(0) % batch_split == 0
@@ -137,8 +137,9 @@ def train_iteration(model, optimizer, scheduler, data, nb_batches_per_iter,
             # reached the end. randomize the offset to reduce overfitting
             train_pos = random.randrange(block_size)
             # reset the cache
-            for h in h_cache:
-                h.fill_(0)
+            if h_cache is not None:
+                for h in h_cache:
+                    h.fill_(0)
 
     loss_all = loss_all / actual_nb_batches_per_iter
     return loss_all, train_pos, h_cache
@@ -178,7 +179,7 @@ def full_eval(model, optimizer, scheduler, data, block_size, hidden_size):
                 eval_only=True,
                 batch_split=1)
         else:
-            loss = _train_batch(
+            loss, _ = _train_batch(
                 model=model,
                 optimizer=optimizer,
                 scheduler=scheduler,

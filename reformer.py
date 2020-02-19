@@ -542,10 +542,10 @@ class ReformerLM(nn.Module):
         attn_span, 
         nb_heads=8,
         bucket_size=64,
-        n_hashes=8,
+        n_hashes=4,
         ff_chunks=100, 
         attn_chunks=None, 
-        causal=False, 
+        causal=True, 
         weight_tie=False, 
         lsh_dropout=0., 
         random_rotations_per_head=False,
@@ -584,7 +584,12 @@ class ReformerLM(nn.Module):
             full_attn_thres=full_attn_thres, 
             num_mem_kv=num_mem_kv
         )
-        self.to_logits = identity if return_embeddings else nn.Linear(hidden_size, vocab_size)
+        if return_embeddings:
+            self.to_logits = identity
+        else:
+            self.to_logits = nn.Linear(hidden_size, vocab_size)
+            if emb_dim == hidden_size:
+                self.to_logits.weight = self.token_emb.weight
 
         def _init_weights(module):
             """ Initialize the weights """
@@ -592,7 +597,7 @@ class ReformerLM(nn.Module):
             if isinstance(module, (nn.Linear, nn.Embedding)):
                 # Slightly different from the TF version which uses truncated_normal for initialization
                 # cf https://github.com/pytorch/pytorch/pull/5617
-                module.weight.data.normal_(mean=0, std=(float(hidden_size // 2) ** -0.5))
+                module.weight.data.normal_(mean=0, std=initializer_range)
             elif isinstance(module, nn.LayerNorm):
                 module.bias.data.zero_()
                 module.weight.data.fill_(1.0)
@@ -614,3 +619,44 @@ class ReformerLM(nn.Module):
             return x
         else:
             return F.log_softmax(x, dim=-1)
+
+
+def pad_to_multiple(tensor, seqlen, multiple, dim=-1):
+    m = seqlen / multiple
+    if m.is_integer():
+        return tensor
+    remainder = math.ceil(m) * multiple - seqlen
+    pad_offset = (0,) * (-1 - dim) * 2
+    return F.pad(tensor, (*pad_offset, 0, remainder), value=0)
+
+class Autopadder(nn.Module):
+    def __init__(self, net):
+        super().__init__()
+        assert isinstance(net, (Reformer, ReformerLM)), 'Only accepts Reformer or ReformerLM classes'
+        self.net = net
+
+        reformer = net.reformer if isinstance(net, ReformerLM) else net
+        self.pad_dim = -1 if isinstance(net, ReformerLM) else -2
+
+        self.bucket_size = reformer.bucket_size
+        self.num_mem_kv = reformer.num_mem_kv
+        self.full_attn_thres = reformer.full_attn_thres
+
+    def forward(self, x, **kwargs):
+        b, t, m = *x.shape[:2], self.num_mem_kv
+
+        keys = kwargs.get('keys')
+        input_mask = kwargs.get('input_mask')
+
+        k_len = 0 if keys is None else keys.shape[1]
+        seqlen = t + m + k_len
+
+        if seqlen > self.full_attn_thres:
+            x = pad_to_multiple(x, seqlen, self.bucket_size * 2, dim=self.pad_dim)
+
+            if input_mask is not None:
+                new_mask = F.pad(input_mask, (0, x.shape[1] - input_mask.shape[1]), value=False)
+                kwargs.update(input_mask=new_mask)
+
+        out = self.net(x, **kwargs)
+        return out[:, 0:t]
